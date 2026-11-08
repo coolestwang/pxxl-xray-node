@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execSync } = require('child_process');
+
 const uuid = process.env.UUID || process.env.APP_KEY;
 const wsPath = process.env.WSPATH || process.env.API_ROUTE || '/ws';
 const port = parseInt(process.env.PORT || '8080', 10);
@@ -23,16 +24,8 @@ const config = {
     { protocol: 'blackhole', tag: 'block' }
   ]
 };
-// Runtime containers run as a non-root user and the app dir may be read-only,
-// so fall back to the writable temp dir when writing the generated config.
-let configPath = path.join(__dirname, 'config.json');
-try {
-  fs.writeFileSync(configPath, JSON.stringify(config));
-} catch (err) {
-  if (err.code !== 'EACCES') throw err;
-  configPath = path.join(os.tmpdir(), 'config.json');
-  fs.writeFileSync(configPath, JSON.stringify(config));
-}
-console.log('config written to', configPath);
+// App dir is read-only at runtime on Pxxl; write the config to the temp dir
+const configPath = path.join(os.tmpdir(), 'xray-config.json');
+fs.writeFileSync(configPath, JSON.stringify(config));
 const child = spawn(bin, ['run', '-c', configPath], { stdio: 'inherit', cwd: __dirname });
 child.on('exit', (code) => process.exit(code === null ? 1 : code));
