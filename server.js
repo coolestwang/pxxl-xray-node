@@ -14,13 +14,17 @@ if (!fs.existsSync(bin)) execSync('node setup.js', { stdio: 'inherit', cwd: __di
 
 const config = {
   log: { loglevel: 'warning' },
+  // Fast explicit DNS: the container's own resolver is slow, which stalls the first dial
+  dns: { servers: ['1.1.1.1', '8.8.8.8'], queryStrategy: 'UseIPv4' },
   inbounds: [{
     listen: '0.0.0.0', port, protocol: 'vless',
     settings: { clients: [{ id: uuid, flow: '' }], decryption: 'none' },
+    sniffing: { enabled: true, destOverride: ['http', 'tls'] },
     streamSettings: { network: 'ws', wsSettings: { path: wsPath } }
   }],
   outbounds: [
-    { protocol: 'freedom', tag: 'direct' },
+    // UseIP: resolve once and dial the IP, no re-resolution per connection
+    { protocol: 'freedom', tag: 'direct', settings: { domainStrategy: 'UseIP' }, streamSettings: { sockopt: { tcpFastOpen: true } } },
     { protocol: 'blackhole', tag: 'block' }
   ]
 };
